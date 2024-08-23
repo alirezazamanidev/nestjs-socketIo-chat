@@ -16,3 +16,15 @@ export class SignUpDto {
   @Length(8, 20)
   password: string;
 }
+export class SignInDto {
+    @ApiProperty({ example: 'zamani@gmail.com' })
+    @IsNotEmpty()
+    @IsEmail()
+    email: string;
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    @Length(8, 20)
+    password: string;
+  }
+  

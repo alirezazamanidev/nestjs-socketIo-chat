@@ -1,10 +1,10 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from '../user/entities/user.entity';
 import { Repository } from 'typeorm';
-import { SignUpDto } from './dto';
-import { ConflictMessage, PublicMessage } from 'src/common/enums/message.enum';
-import { genSalt, hash } from 'bcrypt';
+import { SignInDto, SignUpDto } from './dto';
+import { AuthMesssge, ConflictMessage, PublicMessage } from 'src/common/enums/message.enum';
+import { compare, genSalt, hash } from 'bcrypt';
 import { TokenService } from './token.service';
 
 @Injectable()
@@ -33,6 +33,21 @@ export class AuthService {
     return {
         message:PublicMessage.SignUp,
         token,
+    }
+  }
+
+  async signIn(signInDto:SignInDto){
+    let {email,password}=signInDto;
+    const user=await this.userReposiotry.findOneBy({email});
+    const checkPassword=await compare(password,user.hashedPassword);
+    if(!user || !checkPassword) throw new UnauthorizedException(AuthMesssge.InCurrentPasswordOrEmail);
+
+    // create token
+    const token=this.tokenService.createJwtTokn({userId:user.id})
+
+    return {
+        message:PublicMessage.SignIn,
+        token
     }
   }
 }

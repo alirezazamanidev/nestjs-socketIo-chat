@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './types/payload.type';
 
@@ -13,6 +13,8 @@ export class TokenService {
         secret: JWT_SECRET_KEY,
         expiresIn: '7d',
       });
-    } catch (error) {}
+    } catch (error) {
+        throw new InternalServerErrorException(error.message);
+    }
   }
 }
