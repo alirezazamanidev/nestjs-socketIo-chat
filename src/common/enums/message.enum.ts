@@ -9,5 +9,6 @@ export enum PublicMessage {
 }
 
 export enum AuthMesssge {
-    InCurrentPasswordOrEmail='Password or email inCurrent!'
+    InCurrentPasswordOrEmail='Password or email inCurrent!',
+    TokenNotFounded='No authentication token provided'
 }

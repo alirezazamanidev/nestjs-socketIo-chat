@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TypeOrmDBConfig } from './configs/typeOrm.config';
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ChatModule } from './modules/chat/chat.module';
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
@@ -11,6 +12,7 @@ import { AuthModule } from './modules/auth/auth.module';
     }),
     UserModule,
     AuthModule,
+    ChatModule,
   ],
   providers: [TypeOrmDBConfig],
 })
