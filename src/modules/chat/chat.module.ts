@@ -6,7 +6,7 @@ import { ConnectedUserService } from './services/connected-user.service';
 import { RoomService } from './services/room.service';
 import { MessageService } from './services/messaage.service';
 import { UserModule } from '../user/user.module';
-import { RoomParticipantsUserEntity } from './entities/room-participants-user.entity';
+import { RoomParticipantsUserEntity } from './entities/room-participants-user';
 
 @Module({
   imports: [
@@ -15,7 +15,6 @@ import { RoomParticipantsUserEntity } from './entities/room-participants-user.en
       RoomEntity,
       MessageEntity,
       RoomParticipantsUserEntity,
-      
     ]),
     UserModule,
   ],

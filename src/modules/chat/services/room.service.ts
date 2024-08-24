@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { MessageEntity, RoomEntity } from '../entities';
 import { DataSource, Repository } from 'typeorm';
 import { EntityName } from 'src/common/enums';
@@ -8,7 +8,7 @@ import { MessageService } from './messaage.service';
 import { plainToInstance } from 'class-transformer';
 import { WsException } from '@nestjs/websockets';
 import { CreateRoomDto } from '../dtos/room/create-room.dto';
-import { RoomParticipantsUserEntity } from '../entities/room-participants-user.entity';
+import { RoomParticipantsUserEntity } from '../entities/room-participants-user';
 import { AssignUsersDto } from '../dtos/room/assign-users.dto';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class RoomService {
     @InjectRepository(RoomEntity)
     private readonly roomRepository: Repository<RoomEntity>,
     private readonly messssgeSerivce: MessageService,
-    private readonly dataSourse: DataSource,
+    @InjectDataSource() private dataSource: DataSource,
   ) {}
 
   async create(userId: string, createRoomDto: CreateRoomDto) {
@@ -52,7 +52,8 @@ export class RoomService {
     try {
       const rooms = await this.roomRepository
         .createQueryBuilder(EntityName.Room)
-        .leftJoinAndSelect(
+
+        .innerJoin(
           'room.participants',
           'participant',
           'participant.id = :userId',
@@ -87,74 +88,71 @@ export class RoomService {
       );
     }
   }
-  async findOne(userId: string, id: string) {
-    try {
-      const room = await this.roomRepository.findOne({
-        where: { id },
-        relations: {
-          participants: {
-            user: {
-              connectedUsers: true,
-            },
-          },
-        },
-      });
-      if (!room) {
-        throw new WsException(`Room with ID "${id}" not found.`);
-      }
+  // async findOne(userId: string, id: string) {
+  //   try {
+  //     const room = await this.roomRepository.findOne({
+  //       where: { id },
+  //       relations: {
+  //         participants: {
+  //           user: {
+  //             connectedUsers: true,
+  //           },
+  //         },
+  //       },
+  //     });
+  //     if (!room) {
+  //       throw new WsException(`Room with ID "${id}" not found.`);
+  //     }
 
-      const isParticipnt = room.participants.some(
-        (participant) => participant.userId === userId,
-      );
-      if (!isParticipnt)
-        throw new WsException(
-          `User with ID "${userId}" is not a participant of room with ID "${id}".`,
-        );
-      room.participants=room.participants.map((participant)=>participant.user);
+  //     const isParticipnt = room.participants.some(
+  //       (participant) => participant.userId === userId,
+  //     );
+  //     if (!isParticipnt)
+  //       throw new WsException(
+  //         `User with ID "${userId}" is not a participant of room with ID "${id}".`,
+  //       );
+  //     room.participants=room.participants.map((participant)=>participant.user);
 
-    } catch (error) {}
-  }
+  //   } catch (error) {}
+  // }
   private async assignUsersToRoom(
     userId: string,
     assignUsersDto: AssignUsersDto,
   ): Promise<void> {
-    const queryRunner = this.dataSourse.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
     try {
-      const existingParticipants = await queryRunner.manager.find(
-        RoomParticipantsUserEntity,
-        {
-          where: { roomId: assignUsersDto.roomId },
-        },
-      );
-      const operationType =
-        existingParticipants.length > 0 ? 're-assigned' : 'assigned';
-      await queryRunner.manager.delete(RoomParticipantsUserEntity, {
-        roomId: assignUsersDto.roomId,
-      });
+      await this.dataSource.transaction(async (transactionalEntityManager) => {
+        const existingParticipants = await transactionalEntityManager.find(
+          RoomParticipantsUserEntity,
+          {
+            where: { roomId: assignUsersDto.roomId },
+          },
+        );
+        const operationType =
+          existingParticipants.length > 0 ? 're-assigned' : 'assigned';
 
-      const participantsToAssign = assignUsersDto.participants.map(
-        (participantId) => ({
+        await transactionalEntityManager.delete(RoomParticipantsUserEntity, {
           roomId: assignUsersDto.roomId,
-          userId: participantId,
-          createdBy: userId,
-          updatedBy: userId,
-        }),
-      );
-      await queryRunner.manager.save(
-        RoomParticipantsUserEntity,
-        participantsToAssign,
-      );
+        });
 
-      this.logger.log(
-        `Users ${operationType} to room ${assignUsersDto.roomId} successfully.`,
-      );
-      await queryRunner.commitTransaction();
-      await queryRunner.release();
+        const participantsToAssign = assignUsersDto.participants.map(
+          (participantId) => ({
+            roomId: assignUsersDto.roomId,
+            userId: participantId,
+            createdBy: userId,
+            updatedBy: userId,
+          }),
+        );
+
+        await transactionalEntityManager.save(
+          RoomParticipantsUserEntity,
+          participantsToAssign,
+        );
+
+        this.logger.log(
+          `Users ${operationType} to room ${assignUsersDto.roomId} successfully.`,
+        );
+      });
     } catch (error) {
-      await queryRunner.rollbackTransaction();
-      await queryRunner.release();
       this.logger.error(
         `Failed to assign users to room: ${error.message}`,
         error.stack,

@@ -3,7 +3,6 @@ import { EntityName } from 'src/common/enums';
 import { Column, Entity, JoinTable, ManyToMany, OneToMany } from 'typeorm';
 import { MessageEntity } from './message.entity';
 import { UserEntity } from 'src/modules/user/entities/user.entity';
-import { RoomParticipantsUserEntity } from './room-participants-user.entity';
 
 @Entity(EntityName.Room)
 export class RoomEntity extends BaseEntity {
@@ -14,8 +13,19 @@ export class RoomEntity extends BaseEntity {
   @Column()
   createdBy: string;
 
-  @OneToMany(() => RoomParticipantsUserEntity, (roompart) => roompart.room)
-  participants:RoomParticipantsUserEntity[];
+  @ManyToMany(() => UserEntity, (user) => user.rooms)
+  @JoinTable({
+    name: 'roomParticipantsUser',
+    joinColumn: {
+      name: 'roomId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'userId',
+      referencedColumnName: 'id',
+    },
+  })
+  participants: UserEntity[];
   @OneToMany(() => MessageEntity, (msg) => msg.room)
   messages: MessageEntity[];
 }

@@ -12,18 +12,10 @@ export class RoomParticipantsUserEntity extends BaseEntity {
   @Column()
   roomId: string;
 
-  @Column()
+  @Column({nullable:true})
   createdBy: string;
 
-  @Column()
+  @Column({nullable:true})
   updatedBy: string;
-
-  @ManyToOne(() => UserEntity, (user) => user.rooms, { onDelete: 'CASCADE' })
-  @JoinColumn()
-  user: UserEntity;
-  @ManyToOne(() => RoomEntity, (room) => room.participants, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn()
-  room: RoomEntity;
+  
 }

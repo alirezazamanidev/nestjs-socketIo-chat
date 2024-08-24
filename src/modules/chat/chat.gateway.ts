@@ -42,10 +42,10 @@ export class ChatGateway
     this.logger.log('ChatGateWay initialized!');
     await this.connectedUserService.deleteAll();
   }
-  async handleConnection(socket: Socket): Promise<void> {
+  async handleConnection(socket: Socket){
     try {
       const user = this.authenticateSocket(socket);
-
+     
       await this.initializeUserConnection(user, socket);
     } catch (error) {
       this.handleConnectionError(socket, error);
@@ -77,6 +77,7 @@ export class ChatGateway
     socket.data.user = userPayload;
 
     await this.connectedUserService.create(userPayload.userId, socket.id);
+    
     const rooms = await this.roomService.findByUserId(userPayload.userId);
     this.server.to(socket.id).emit('userAllRooms', rooms);
     this.logger.log(
@@ -85,7 +86,6 @@ export class ChatGateway
   }
   authenticateSocket(socket: Socket): JwtPayload {
     const token = this.extractJwtToken(socket);
-
     return this.jwtService.verify(token, {
       secret: process.env.JWT_SECRET_KEY,
     });
