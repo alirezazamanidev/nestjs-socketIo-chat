@@ -91,8 +91,27 @@ export class RoomService {
     try {
       const room = await this.roomRepository.findOne({
         where: { id },
-        relations: ['participants', 'participants.connectedUsers', 'messages'],
+        relations: {
+          participants: {
+            user: {
+              connectedUsers: true,
+            },
+          },
+        },
       });
+      if (!room) {
+        throw new WsException(`Room with ID "${id}" not found.`);
+      }
+
+      const isParticipnt = room.participants.some(
+        (participant) => participant.userId === userId,
+      );
+      if (!isParticipnt)
+        throw new WsException(
+          `User with ID "${userId}" is not a participant of room with ID "${id}".`,
+        );
+      room.participants=room.participants.map((participant)=>participant.user);
+
     } catch (error) {}
   }
   private async assignUsersToRoom(
