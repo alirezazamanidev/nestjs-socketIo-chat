@@ -1,18 +1,21 @@
-import { BaseEntity } from "src/common/abstracts/baseEntity.abstract";
-import { EntityName } from "src/common/enums";
-import { Column, Entity, OneToMany } from "typeorm";
-import { MessageEntity } from "./message.entity";
+import { BaseEntity } from 'src/common/abstracts/baseEntity.abstract';
+import { EntityName } from 'src/common/enums';
+import { Column, Entity, JoinTable, ManyToMany, OneToMany } from 'typeorm';
+import { MessageEntity } from './message.entity';
+import { UserEntity } from 'src/modules/user/entities/user.entity';
 
 @Entity(EntityName.Room)
 export class RoomEntity extends BaseEntity {
-    @Column({nullable:true})
-    name:string
-    @Column()
-    type:string
-    @Column()
-    createdBy:string
+  @Column({ nullable: true })
+  name: string;
+  @Column()
+  type: string;
+  @Column()
+  createdBy: string;
 
-    @OneToMany(()=>MessageEntity,msg=>msg.room)
-    messages:MessageEntity[]
-
+  @ManyToMany(() => UserEntity, (user) => user.rooms)
+  
+  participants: UserEntity[];
+  @OneToMany(() => MessageEntity, (msg) => msg.room)
+  messages: MessageEntity[];
 }

@@ -1,8 +1,8 @@
 import { BaseEntity } from 'src/common/abstracts/baseEntity.abstract';
 import { EntityName } from 'src/common/enums';
-import { ConnectedUserEntity } from 'src/modules/chat/entities';
+import { ConnectedUserEntity, RoomEntity } from 'src/modules/chat/entities';
 import { MessageEntity } from 'src/modules/chat/entities/message.entity';
-import { Column, Entity, OneToMany } from 'typeorm';
+import { Column, Entity, ManyToMany, OneToMany } from 'typeorm';
 @Entity(EntityName.User)
 export class UserEntity extends BaseEntity {
   @Column({})
@@ -15,4 +15,6 @@ export class UserEntity extends BaseEntity {
   messages:MessageEntity[]
   @OneToMany(()=>ConnectedUserEntity,coUser=>coUser.user)
   connectedUsers:ConnectedUserEntity[]
+  @ManyToMany(() => RoomEntity, (room) => room.participants)
+  rooms: RoomEntity[];
 }
