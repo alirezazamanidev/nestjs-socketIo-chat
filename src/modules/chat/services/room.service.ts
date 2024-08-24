@@ -30,6 +30,8 @@ export class RoomService {
         )
         .leftJoinAndSelect('room.participants', 'allParticipants')
         .getMany();
+    
+        
       const roomDetailsList: RoomDetailDto[] = [];
       for (const room of rooms) {
         const lastMessageResult = await this.messssgeSerivce.findByRoomId({

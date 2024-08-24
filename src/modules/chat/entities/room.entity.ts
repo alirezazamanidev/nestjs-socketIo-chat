@@ -14,7 +14,17 @@ export class RoomEntity extends BaseEntity {
   createdBy: string;
 
   @ManyToMany(() => UserEntity, (user) => user.rooms)
-  
+  @JoinTable({
+    name: 'roomParticipantsUser',
+    joinColumn: {
+      name: 'roomId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'userId',
+      referencedColumnName: 'id',
+    },
+  })
   participants: UserEntity[];
   @OneToMany(() => MessageEntity, (msg) => msg.room)
   messages: MessageEntity[];
