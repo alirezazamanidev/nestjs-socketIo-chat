@@ -36,6 +36,7 @@ export class ChatGateway
     private readonly connectedUserService: ConnectedUserService,
     private readonly jwtService: JwtService,
     private readonly roomService: RoomService,
+    
   ) {}
   async afterInit(server: any) {
     this.logger.log('ChatGateWay initialized!');
@@ -66,8 +67,9 @@ export class ChatGateway
         createRoomDto.participants,
         currentUser.userId,
       );
+      
       const newRoom=await this.roomService.create(currentUser.userId,createRoomDto);
-      const createdRoomWithDetailes=await this.roomService.
+      // const createdRoomWithDetailes=await this.roomService.
     } catch (error) {}
   }
 

@@ -8,8 +8,8 @@ import { MessageService } from './messaage.service';
 import { plainToInstance } from 'class-transformer';
 import { WsException } from '@nestjs/websockets';
 import { CreateRoomDto } from '../dtos/room/create-room.dto';
+import { RoomParticipantsUserEntity } from '../entities/room-participants-user.entity';
 import { AssignUsersDto } from '../dtos/room/assign-users.dto';
-import { RoomParticipantsUser } from '../entities/room-participants-user';
 
 @Injectable()
 export class RoomService {
@@ -30,8 +30,10 @@ export class RoomService {
         createdBy: userId,
       });
       const savedRoom = await this.roomRepository.save(newRoom);
+
       if (participants && participants.length > 0) {
         participants.push(userId);
+
         await this.assignUsersToRoom(userId, {
           roomId: savedRoom.id,
           participants,
@@ -50,7 +52,7 @@ export class RoomService {
     try {
       const rooms = await this.roomRepository
         .createQueryBuilder(EntityName.Room)
-        .innerJoin(
+        .leftJoinAndSelect(
           'room.participants',
           'participant',
           'participant.id = :userId',
@@ -85,47 +87,55 @@ export class RoomService {
       );
     }
   }
-  async findOne(userId:string,id:string){
+  async findOne(userId: string, id: string) {
     try {
-    
-    } catch (error) {
-      
-    }
+      const room = await this.roomRepository.findOne({
+        where: { id },
+        relations: ['participants', 'participants.connectedUsers', 'messages'],
+      });
+    } catch (error) {}
   }
   private async assignUsersToRoom(
     userId: string,
     assignUsersDto: AssignUsersDto,
   ): Promise<void> {
+    const queryRunner = this.dataSourse.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
     try {
-      await this.dataSourse.transaction(async (transactionalEntityManager) => {
-        const existingParticipants = await transactionalEntityManager.find(
-          RoomParticipantsUser,
-          {
-            where: { roomId: assignUsersDto.roomId },
-          },
-        );
-        const operationType =
-          existingParticipants.length > 0 ? 're-assigned' : 'assigned';
-        await transactionalEntityManager.delete(RoomParticipantsUser, {
-          roomId: assignUsersDto.roomId,
-        });
-        const participantsToAssign = assignUsersDto.participants.map(
-          (participantId) => ({
-            roomId: assignUsersDto.roomId,
-            userId: participantId,
-            createdBy: userId,
-            updatedBy: userId,
-          }),
-        );
-        await transactionalEntityManager.save(
-          RoomParticipantsUser,
-          participantsToAssign,
-        );
-        this.logger.log(
-          `Users ${operationType} to room ${assignUsersDto.roomId} successfully.`,
-        );
+      const existingParticipants = await queryRunner.manager.find(
+        RoomParticipantsUserEntity,
+        {
+          where: { roomId: assignUsersDto.roomId },
+        },
+      );
+      const operationType =
+        existingParticipants.length > 0 ? 're-assigned' : 'assigned';
+      await queryRunner.manager.delete(RoomParticipantsUserEntity, {
+        roomId: assignUsersDto.roomId,
       });
+
+      const participantsToAssign = assignUsersDto.participants.map(
+        (participantId) => ({
+          roomId: assignUsersDto.roomId,
+          userId: participantId,
+          createdBy: userId,
+          updatedBy: userId,
+        }),
+      );
+      await queryRunner.manager.save(
+        RoomParticipantsUserEntity,
+        participantsToAssign,
+      );
+
+      this.logger.log(
+        `Users ${operationType} to room ${assignUsersDto.roomId} successfully.`,
+      );
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
     } catch (error) {
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
       this.logger.error(
         `Failed to assign users to room: ${error.message}`,
         error.stack,
