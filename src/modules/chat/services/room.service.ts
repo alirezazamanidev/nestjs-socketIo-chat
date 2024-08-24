@@ -1,12 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MessageEntity, RoomEntity } from '../entities';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { EntityName } from 'src/common/enums';
 import { RoomDetailDto } from '../dtos/room/room-detail.dto';
 import { MessageService } from './messaage.service';
 import { plainToInstance } from 'class-transformer';
 import { WsException } from '@nestjs/websockets';
+import { CreateRoomDto } from '../dtos/room/create-room.dto';
+import { AssignUsersDto } from '../dtos/room/assign-users.dto';
+import { RoomParticipantsUser } from '../entities/room-participants-user';
 
 @Injectable()
 export class RoomService {
@@ -16,8 +19,33 @@ export class RoomService {
     @InjectRepository(RoomEntity)
     private readonly roomRepository: Repository<RoomEntity>,
     private readonly messssgeSerivce: MessageService,
+    private readonly dataSourse: DataSource,
   ) {}
 
+  async create(userId: string, createRoomDto: CreateRoomDto) {
+    const { participants, ...RoomDetails } = createRoomDto;
+    try {
+      const newRoom = this.roomRepository.create({
+        ...RoomDetails,
+        createdBy: userId,
+      });
+      const savedRoom = await this.roomRepository.save(newRoom);
+      if (participants && participants.length > 0) {
+        participants.push(userId);
+        await this.assignUsersToRoom(userId, {
+          roomId: savedRoom.id,
+          participants,
+        });
+      }
+      this.logger.log(
+        `Room with ID ${savedRoom.id} created successfully by User ID: ${userId}`,
+      );
+      return savedRoom;
+    } catch (error) {
+      this.logger.error(`Failed to create room: ${error.message}`, error.stack);
+      throw new WsException('Error occurred while creating the room.');
+    }
+  }
   async findByUserId(userId: string) {
     try {
       const rooms = await this.roomRepository
@@ -30,8 +58,7 @@ export class RoomService {
         )
         .leftJoinAndSelect('room.participants', 'allParticipants')
         .getMany();
-    
-        
+
       const roomDetailsList: RoomDetailDto[] = [];
       for (const room of rooms) {
         const lastMessageResult = await this.messssgeSerivce.findByRoomId({
@@ -55,6 +82,56 @@ export class RoomService {
       );
       throw new WsException(
         'An error occurred while retrieving user rooms. Please try again later.',
+      );
+    }
+  }
+  async findOne(userId:string,id:string){
+    try {
+    
+    } catch (error) {
+      
+    }
+  }
+  private async assignUsersToRoom(
+    userId: string,
+    assignUsersDto: AssignUsersDto,
+  ): Promise<void> {
+    try {
+      await this.dataSourse.transaction(async (transactionalEntityManager) => {
+        const existingParticipants = await transactionalEntityManager.find(
+          RoomParticipantsUser,
+          {
+            where: { roomId: assignUsersDto.roomId },
+          },
+        );
+        const operationType =
+          existingParticipants.length > 0 ? 're-assigned' : 'assigned';
+        await transactionalEntityManager.delete(RoomParticipantsUser, {
+          roomId: assignUsersDto.roomId,
+        });
+        const participantsToAssign = assignUsersDto.participants.map(
+          (participantId) => ({
+            roomId: assignUsersDto.roomId,
+            userId: participantId,
+            createdBy: userId,
+            updatedBy: userId,
+          }),
+        );
+        await transactionalEntityManager.save(
+          RoomParticipantsUser,
+          participantsToAssign,
+        );
+        this.logger.log(
+          `Users ${operationType} to room ${assignUsersDto.roomId} successfully.`,
+        );
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to assign users to room: ${error.message}`,
+        error.stack,
+      );
+      throw new WsException(
+        `Failed to assign users to the room: ${error.message}`,
       );
     }
   }
