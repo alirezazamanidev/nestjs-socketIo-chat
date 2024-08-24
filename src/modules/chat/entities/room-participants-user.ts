@@ -4,7 +4,6 @@ import { UserEntity } from 'src/modules/user/entities/user.entity';
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import { RoomEntity } from './room.entity';
 
-@Entity(EntityName.RoomParticipantsUser)
 export class RoomParticipantsUserEntity extends BaseEntity {
   @Column()
   userId: string;
